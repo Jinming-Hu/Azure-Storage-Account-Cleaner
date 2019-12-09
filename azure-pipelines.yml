@@ -1,0 +1,21 @@
+trigger:
+- master
+
+pr:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- script: |
+    pip install wheel
+    pip install azure
+  displayName: Install Python Packages
+
+- script: |
+    ./cleaner.py "$(storage_account1)"
+    ./cleaner.py "$(storage_account2)"
+    ./cleaner.py "$(storage_account3)"
+    ./cleaner.py "$(storage_account4)"
+  displayName: Run Cleaner
