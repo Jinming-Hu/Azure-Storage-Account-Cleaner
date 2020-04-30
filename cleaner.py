@@ -7,6 +7,7 @@ import json
 from multiprocessing.dummy import Pool as ThreadPool
 
 import azure.common
+import azure.storage.common
 from azure.storage.blob.baseblobservice import BaseBlobService
 from azure.storage.file import FileService
 from azure.storage.queue import QueueService
