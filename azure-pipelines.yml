@@ -10,7 +10,7 @@ pool:
 steps:
 - script: |
     pip install wheel
-    pip install azure-storage azure-storage-common azure-cosmosdb-table
+    pip install azure-storage-common azure-storage-blob azure-storage-file-share azure-storage-file-datalake azure-storage-queue azure-cosmosdb-table
   displayName: Install Python Packages
 
 - script: |
