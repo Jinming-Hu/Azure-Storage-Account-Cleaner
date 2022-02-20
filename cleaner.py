@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from __future__ import print_function
 import os
 import sys
 import json
+import socket
+import urllib.parse
 from multiprocessing.dummy import Pool as ThreadPool
 
 import azure.common
@@ -11,7 +12,7 @@ import azure.storage.common
 from azure.storage.blob import BlobServiceClient
 from azure.storage.fileshare import ShareServiceClient
 from azure.storage.queue import QueueServiceClient
-from azure.cosmosdb.table import TableService
+from azure.data.tables import TableServiceClient
 
 
 def delete_container(blob_service, container_name):
@@ -22,6 +23,9 @@ def delete_container(blob_service, container_name):
         if "LeaseIdMissing" in err.message:
             blob_service.break_container_lease(container_name)
             blob_service.delete_container(container_name)
+    except azure.core.exceptions.ResourceExistsError as err:
+        print(err)
+        pass
 
 
 def delete_file_share(file_service, share_name):
@@ -39,37 +43,42 @@ def delete_table(table_service, table_name):
     table_service.delete_table(table_name)
 
 
+def service_exists(service_client):
+    try:
+        socket.getaddrinfo(urllib.parse.urlparse(
+            service_client.url).netloc, 443)
+    except socket.gaierror:
+        return False
+    return True
+
+
 def clean_storage_account(connection_string):
     pool = ThreadPool(16)
-    no_retry = azure.storage.common.retry.no_retry
 
-    try:
-        blob_service = BlobServiceClient.from_connection_string(connection_string)
-        blob_service.retry = no_retry
-        pool.map(lambda container: delete_container(blob_service, container.name), blob_service.list_containers(timeout=3))
-    except azure.core.exceptions.ServiceRequestError:
-        print("No blob service")
+    blob_service = BlobServiceClient.from_connection_string(connection_string)
+    if service_exists(blob_service):
+        pool.map(lambda container: delete_container(blob_service,
+                 container.name), blob_service.list_containers())
 
-    try:
-        file_service = ShareServiceClient.from_connection_string(connection_string)
-        file_service.retry = no_retry
-        pool.map(lambda share: delete_file_share(file_service, share.name), file_service.list_shares(timeout=3))
-    except azure.core.exceptions.ServiceRequestError:
-        print("No file service")
+    file_service = ShareServiceClient.from_connection_string(connection_string)
+    if service_exists(file_service):
+        pool.map(lambda share: delete_file_share(
+            file_service, share.name), file_service.list_shares())
 
-    try:
-        queue_service = QueueServiceClient.from_connection_string(connection_string)
-        queue_service.retry = no_retry
-        pool.map(lambda queue: delete_queue(queue_service, queue.name), queue_service.list_queues(timeout=3))
-    except azure.core.exceptions.ServiceRequestError:
-        print("No queue service")
+    queue_service = QueueServiceClient.from_connection_string(
+        connection_string)
+    if service_exists(queue_service):
+        pool.map(lambda queue: delete_queue(queue_service,
+                 queue.name), queue_service.list_queues())
 
-    try:
-        table_service = TableService(connection_string=connection_string)
-        table_service.retry = no_retry
-        pool.map(lambda table: delete_table(table_service, table.name), table_service.list_tables(timeout=3))
-    except azure.common.AzureException:
-        print("No table service")
+    table_service = TableServiceClient.from_connection_string(
+        connection_string)
+    if service_exists(table_service):
+        try:
+            pool.map(lambda table: delete_table(table_service,
+                     table.name), table_service.list_tables())
+        except azure.core.exceptions.HttpResponseError as e:
+            pass
 
 
 if len(sys.argv) > 1 and sys.argv[1]:
