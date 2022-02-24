@@ -7,9 +7,8 @@ import socket
 import urllib.parse
 from multiprocessing.dummy import Pool as ThreadPool
 
-import azure.common
-import azure.storage.common
-from azure.storage.blob import BlobServiceClient
+import azure.core
+from azure.storage.blob import BlobServiceClient, BlobLeaseClient
 from azure.storage.fileshare import ShareServiceClient
 from azure.storage.queue import QueueServiceClient
 from azure.data.tables import TableServiceClient
@@ -19,9 +18,11 @@ def delete_container(blob_service, container_name):
     print("Delete container: {}/{}".format(blob_service.account_name, container_name))
     try:
         blob_service.delete_container(container_name)
-    except azure.common.AzureHttpError as err:
+    except azure.core.exceptions.HttpResponseError as err:
         if "LeaseIdMissing" in err.message:
-            blob_service.break_container_lease(container_name)
+            lease_client = BlobLeaseClient(
+                blob_service.get_container_client(container_name))
+            lease_client.break_lease()
             blob_service.delete_container(container_name)
     except azure.core.exceptions.ResourceExistsError as err:
         print(err)

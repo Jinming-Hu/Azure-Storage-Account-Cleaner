@@ -1,0 +1,4 @@
+azure-storage-blob
+azure-storage-file-share
+azure-storage-queue
+azure-data-tables
