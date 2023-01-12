@@ -31,7 +31,7 @@ def delete_container(blob_service, container_name):
 
 def delete_file_share(file_service, share_name):
     print("Delete share: {}/{}".format(file_service.account_name, share_name))
-    file_service.delete_share(share_name)
+    file_service.delete_share(share_name, delete_snapshots=True)
 
 
 def delete_queue(queue_service, queue_name):
